@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package message;
+
+option go_package = "./service";
+
+enum State {
+  NORMAL = 0;
+  HIDDEN = 1;
+}
+
+enum ObjType {
+  Video = 0;
+  Article = 1;
+}
+
+message CreateMessageRequest {
+  int64 obj_id = 1;
+  int64 member_id = 2;
+
+  int32 count = 3;
+  int32 root_count = 4;
+  int32 all_count = 5;
+
+  State state = 6;
+  ObjType obj_type = 7;
+
+  int64 root = 8;
+  int64 parent = 9;
+  int32 like = 10;
+  int32 hate = 11;
+  int32 floor = 12;
+  int64 ip = 13;
+  string comment = 14; // 评论内容
+}
+
+message CreateMessageResponse {
+  bool success = 1;
+}
+
+message GetCommentRequest {
+  int64  ObjID = 4;
+  int32  ObjType = 10;
+}
+
+message GetCommentResponse {
+  int64  Root = 1;
+  int64  Parent = 2;
+  int64  MemberID = 3;
+  int64  ObjID = 4;
+  int32  Count = 5;
+  int32  RootCount = 6;
+  int32  Like = 7;
+  int32  Hate = 8;
+  int32  State = 9;
+  int32  ObjType = 10;
+  int32  Floor = 11;
+  int64  IP = 12;
+  string Message = 13;
+}
+
+service MessageService {
+  rpc CreateCommentMessageTwoStream (stream CreateMessageRequest) returns (stream CreateMessageResponse);
+  rpc GetCommentTwoStream (stream GetCommentRequest) returns (stream GetCommentResponse);
+}
