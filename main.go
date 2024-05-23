@@ -20,6 +20,7 @@ func main() {
 	// 初始化数据库
 	global.DB = core.Gorm()
 	global.Redis = core.Redis()
+	core.Grpc()
 	//// 初始化es
 	//global.Elasticsearch = core.ESInit()
 

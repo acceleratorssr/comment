@@ -16,4 +16,5 @@ var (
 	Log      *logrus.Logger
 	MysqlLog logger.Interface
 	Redis    *redis.Client
+	Grpc     *config.Grpc
 )
