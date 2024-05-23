@@ -1,8 +1,76 @@
 package comment_api
 
-import "github.com/gin-gonic/gin"
+import (
+	"comment/comment_service/service"
+	"comment/global"
+	"comment/models/res"
+	"context"
+	"fmt"
+	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+)
 
-// CreateComment 创建评论
+type CreateCommentRequest struct {
+	Root     int64 `json:"root,omitempty"`      //根评论ID,不为0是回复评论
+	Parent   int64 `json:"parent,omitempty"`    //父评论ID,为0是root评论
+	MemberID int64 `json:"member_id,omitempty"` //发表者用户id
+	ObjID    int64 `json:"obj_id,omitempty"`    //对象id 即该条评论对应的对象 冗余设计
+	State    int8  `json:"state,omitempty"`     //状态(0-正常、1-隐藏)
+	ObjType  int8  `json:"obj_type,omitempty"`  //对象类型 冗余设计
+	Floor    int32 `json:"floor,omitempty"`     //评论楼层
+
+	IP int64 `json:"ip,omitempty"`
+
+	Message string `json:"message,omitempty"`
+}
+
+// CreateComment 创建单条评论
 func (CommentApi) CreateComment(c *gin.Context) {
+	var CCR CreateCommentRequest
+	err := c.ShouldBindJSON(&CCR)
+	if err != nil {
+		global.Log.Error(err)
+		res.FailWithError(err, CreateCommentRequest{}, c)
+		return
+	}
 
+	var opts []grpc.DialOption
+	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+
+	conn, err := grpc.NewClient(global.Grpc.Addr, opts...)
+	if err != nil {
+		global.Log.Error(err)
+		res.FailWithMessage(err.Error(), c)
+		return
+	}
+	defer func(conn *grpc.ClientConn) {
+		err := conn.Close()
+		if err != nil {
+			fmt.Println(err)
+			global.Log.Error(err)
+		}
+	}(conn)
+
+	client := service.NewMessageServiceClient(conn)
+
+	resp, err := client.CreateCommentMessage(context.Background(), &service.CreateMessageRequest{
+		ObjId:    CCR.ObjID,
+		MemberId: CCR.MemberID,
+		State:    service.State(CCR.State),
+		ObjType:  service.ObjType(CCR.ObjType),
+		Root:     CCR.Root,
+		Parent:   CCR.Parent,
+		Floor:    CCR.Floor,
+		Ip:       CCR.IP,
+		Comment:  CCR.Message,
+	})
+
+	if err != nil {
+		global.Log.Error(err)
+		res.FailWithMessage(err.Error(), c)
+		return
+	}
+
+	res.OKWithAll(resp, "ok", c)
 }

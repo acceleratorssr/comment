@@ -2,9 +2,12 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"sync"
 )
 
 type CommentMessage struct {
+	wg sync.WaitGroup
 }
 
 func NewCommentMessageServer() *CommentMessage {
@@ -13,6 +16,24 @@ func NewCommentMessageServer() *CommentMessage {
 
 // CreateCommentMessage 将评论先写入kafka，再由kafka事务写入mysql，刷新redis
 func (c *CommentMessage) CreateCommentMessage(ctx context.Context, request *CreateMessageRequest) (*CreateMessageResponse, error) {
+	c.wg.Add(1)
+	fmt.Println("1")
+	go func() {
+		defer c.wg.Done()
+		producer()
+	}()
+
+	c.wg.Wait()
+
+	c.wg.Add(1)
+	fmt.Println("3")
+	go func() {
+		defer c.wg.Done()
+		consumer()
+	}()
+
+	c.wg.Wait()
+
 	CMR := CreateMessageResponse{
 		Success: true,
 	}
