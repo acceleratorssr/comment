@@ -19,16 +19,16 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	MessageService_CreateCommentMessageTwoStream_FullMethodName = "/message.MessageService/CreateCommentMessageTwoStream"
-	MessageService_GetCommentTwoStream_FullMethodName           = "/message.MessageService/GetCommentTwoStream"
+	MessageService_CreateCommentMessage_FullMethodName = "/message.MessageService/CreateCommentMessage"
+	MessageService_GetComment_FullMethodName           = "/message.MessageService/GetComment"
 )
 
 // MessageServiceClient is the client API for MessageService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MessageServiceClient interface {
-	CreateCommentMessageTwoStream(ctx context.Context, opts ...grpc.CallOption) (MessageService_CreateCommentMessageTwoStreamClient, error)
-	GetCommentTwoStream(ctx context.Context, opts ...grpc.CallOption) (MessageService_GetCommentTwoStreamClient, error)
+	CreateCommentMessage(ctx context.Context, in *CreateMessageRequest, opts ...grpc.CallOption) (*CreateMessageResponse, error)
+	GetComment(ctx context.Context, in *GetCommentRequest, opts ...grpc.CallOption) (*GetCommentResponse, error)
 }
 
 type messageServiceClient struct {
@@ -39,74 +39,30 @@ func NewMessageServiceClient(cc grpc.ClientConnInterface) MessageServiceClient {
 	return &messageServiceClient{cc}
 }
 
-func (c *messageServiceClient) CreateCommentMessageTwoStream(ctx context.Context, opts ...grpc.CallOption) (MessageService_CreateCommentMessageTwoStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &MessageService_ServiceDesc.Streams[0], MessageService_CreateCommentMessageTwoStream_FullMethodName, opts...)
+func (c *messageServiceClient) CreateCommentMessage(ctx context.Context, in *CreateMessageRequest, opts ...grpc.CallOption) (*CreateMessageResponse, error) {
+	out := new(CreateMessageResponse)
+	err := c.cc.Invoke(ctx, MessageService_CreateCommentMessage_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &messageServiceCreateCommentMessageTwoStreamClient{stream}
-	return x, nil
+	return out, nil
 }
 
-type MessageService_CreateCommentMessageTwoStreamClient interface {
-	Send(*CreateMessageRequest) error
-	Recv() (*CreateMessageResponse, error)
-	grpc.ClientStream
-}
-
-type messageServiceCreateCommentMessageTwoStreamClient struct {
-	grpc.ClientStream
-}
-
-func (x *messageServiceCreateCommentMessageTwoStreamClient) Send(m *CreateMessageRequest) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *messageServiceCreateCommentMessageTwoStreamClient) Recv() (*CreateMessageResponse, error) {
-	m := new(CreateMessageResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *messageServiceClient) GetCommentTwoStream(ctx context.Context, opts ...grpc.CallOption) (MessageService_GetCommentTwoStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &MessageService_ServiceDesc.Streams[1], MessageService_GetCommentTwoStream_FullMethodName, opts...)
+func (c *messageServiceClient) GetComment(ctx context.Context, in *GetCommentRequest, opts ...grpc.CallOption) (*GetCommentResponse, error) {
+	out := new(GetCommentResponse)
+	err := c.cc.Invoke(ctx, MessageService_GetComment_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &messageServiceGetCommentTwoStreamClient{stream}
-	return x, nil
-}
-
-type MessageService_GetCommentTwoStreamClient interface {
-	Send(*GetCommentRequest) error
-	Recv() (*GetCommentResponse, error)
-	grpc.ClientStream
-}
-
-type messageServiceGetCommentTwoStreamClient struct {
-	grpc.ClientStream
-}
-
-func (x *messageServiceGetCommentTwoStreamClient) Send(m *GetCommentRequest) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *messageServiceGetCommentTwoStreamClient) Recv() (*GetCommentResponse, error) {
-	m := new(GetCommentResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
+	return out, nil
 }
 
 // MessageServiceServer is the server API for MessageService service.
 // All implementations must embed UnimplementedMessageServiceServer
 // for forward compatibility
 type MessageServiceServer interface {
-	CreateCommentMessageTwoStream(MessageService_CreateCommentMessageTwoStreamServer) error
-	GetCommentTwoStream(MessageService_GetCommentTwoStreamServer) error
+	CreateCommentMessage(context.Context, *CreateMessageRequest) (*CreateMessageResponse, error)
+	GetComment(context.Context, *GetCommentRequest) (*GetCommentResponse, error)
 	mustEmbedUnimplementedMessageServiceServer()
 }
 
@@ -114,11 +70,11 @@ type MessageServiceServer interface {
 type UnimplementedMessageServiceServer struct {
 }
 
-func (UnimplementedMessageServiceServer) CreateCommentMessageTwoStream(MessageService_CreateCommentMessageTwoStreamServer) error {
-	return status.Errorf(codes.Unimplemented, "method CreateCommentMessageTwoStream not implemented")
+func (UnimplementedMessageServiceServer) CreateCommentMessage(context.Context, *CreateMessageRequest) (*CreateMessageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateCommentMessage not implemented")
 }
-func (UnimplementedMessageServiceServer) GetCommentTwoStream(MessageService_GetCommentTwoStreamServer) error {
-	return status.Errorf(codes.Unimplemented, "method GetCommentTwoStream not implemented")
+func (UnimplementedMessageServiceServer) GetComment(context.Context, *GetCommentRequest) (*GetCommentResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetComment not implemented")
 }
 func (UnimplementedMessageServiceServer) mustEmbedUnimplementedMessageServiceServer() {}
 
@@ -133,56 +89,40 @@ func RegisterMessageServiceServer(s grpc.ServiceRegistrar, srv MessageServiceSer
 	s.RegisterService(&MessageService_ServiceDesc, srv)
 }
 
-func _MessageService_CreateCommentMessageTwoStream_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(MessageServiceServer).CreateCommentMessageTwoStream(&messageServiceCreateCommentMessageTwoStreamServer{stream})
-}
-
-type MessageService_CreateCommentMessageTwoStreamServer interface {
-	Send(*CreateMessageResponse) error
-	Recv() (*CreateMessageRequest, error)
-	grpc.ServerStream
-}
-
-type messageServiceCreateCommentMessageTwoStreamServer struct {
-	grpc.ServerStream
-}
-
-func (x *messageServiceCreateCommentMessageTwoStreamServer) Send(m *CreateMessageResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *messageServiceCreateCommentMessageTwoStreamServer) Recv() (*CreateMessageRequest, error) {
-	m := new(CreateMessageRequest)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
+func _MessageService_CreateCommentMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateMessageRequest)
+	if err := dec(in); err != nil {
 		return nil, err
 	}
-	return m, nil
+	if interceptor == nil {
+		return srv.(MessageServiceServer).CreateCommentMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MessageService_CreateCommentMessage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MessageServiceServer).CreateCommentMessage(ctx, req.(*CreateMessageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
-func _MessageService_GetCommentTwoStream_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(MessageServiceServer).GetCommentTwoStream(&messageServiceGetCommentTwoStreamServer{stream})
-}
-
-type MessageService_GetCommentTwoStreamServer interface {
-	Send(*GetCommentResponse) error
-	Recv() (*GetCommentRequest, error)
-	grpc.ServerStream
-}
-
-type messageServiceGetCommentTwoStreamServer struct {
-	grpc.ServerStream
-}
-
-func (x *messageServiceGetCommentTwoStreamServer) Send(m *GetCommentResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *messageServiceGetCommentTwoStreamServer) Recv() (*GetCommentRequest, error) {
-	m := new(GetCommentRequest)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
+func _MessageService_GetComment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetCommentRequest)
+	if err := dec(in); err != nil {
 		return nil, err
 	}
-	return m, nil
+	if interceptor == nil {
+		return srv.(MessageServiceServer).GetComment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MessageService_GetComment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MessageServiceServer).GetComment(ctx, req.(*GetCommentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 // MessageService_ServiceDesc is the grpc.ServiceDesc for MessageService service.
@@ -191,20 +131,16 @@ func (x *messageServiceGetCommentTwoStreamServer) Recv() (*GetCommentRequest, er
 var MessageService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "message.MessageService",
 	HandlerType: (*MessageServiceServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams: []grpc.StreamDesc{
+	Methods: []grpc.MethodDesc{
 		{
-			StreamName:    "CreateCommentMessageTwoStream",
-			Handler:       _MessageService_CreateCommentMessageTwoStream_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
+			MethodName: "CreateCommentMessage",
+			Handler:    _MessageService_CreateCommentMessage_Handler,
 		},
 		{
-			StreamName:    "GetCommentTwoStream",
-			Handler:       _MessageService_GetCommentTwoStream_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
+			MethodName: "GetComment",
+			Handler:    _MessageService_GetComment_Handler,
 		},
 	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "message.proto",
 }

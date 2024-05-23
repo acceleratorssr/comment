@@ -60,6 +60,6 @@ message GetCommentResponse {
 }
 
 service MessageService {
-  rpc CreateCommentMessageTwoStream (stream CreateMessageRequest) returns (stream CreateMessageResponse);
-  rpc GetCommentTwoStream (stream GetCommentRequest) returns (stream GetCommentResponse);
+  rpc CreateCommentMessage (CreateMessageRequest) returns (CreateMessageResponse);
+  rpc GetComment (GetCommentRequest) returns (GetCommentResponse);
 }
