@@ -1,8 +1,9 @@
 package service
 
 import (
+	"comment/global"
 	"context"
-	"fmt"
+	"google.golang.org/protobuf/proto"
 	"sync"
 )
 
@@ -15,24 +16,25 @@ func NewCommentMessageServer() *CommentMessage {
 }
 
 // CreateCommentMessage 将评论先写入kafka，再由kafka事务写入mysql，刷新redis
+// 专注于数据处理，准备数据
 func (c *CommentMessage) CreateCommentMessage(ctx context.Context, request *CreateMessageRequest) (*CreateMessageResponse, error) {
-	c.wg.Add(1)
-	fmt.Println("1")
-	go func() {
-		defer c.wg.Done()
-		producer()
-	}()
+	data, err := proto.Marshal(&CreateMessageRequest{
+		ObjId:    request.ObjId,
+		MemberId: request.MemberId,
+		State:    request.State,
+		ObjType:  request.ObjType,
+		Root:     request.Root,
+		Parent:   request.Parent,
+		Floor:    request.Floor,
+		Ip:       request.Ip,
+		Comment:  request.Comment,
+	})
+	if err != nil {
+		global.Log.Warn("proto.Marshal err: %v", err)
+		return nil, err
+	}
 
-	c.wg.Wait()
-
-	c.wg.Add(1)
-	fmt.Println("3")
-	go func() {
-		defer c.wg.Done()
-		consumer()
-	}()
-
-	c.wg.Wait()
+	go producer(data)
 
 	CMR := CreateMessageResponse{
 		Success: true,

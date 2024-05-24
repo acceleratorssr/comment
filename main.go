@@ -21,6 +21,8 @@ func main() {
 	global.DB = core.Gorm()
 	global.Redis = core.Redis()
 	core.Grpc()
+	core.Kafka()
+
 	//// 初始化es
 	//global.Elasticsearch = core.ESInit()
 

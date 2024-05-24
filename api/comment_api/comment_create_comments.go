@@ -27,8 +27,8 @@ type CreateCommentRequest struct {
 
 // CreateComment 创建单条评论
 func (CommentApi) CreateComment(c *gin.Context) {
-	var CCR CreateCommentRequest
-	err := c.ShouldBindJSON(&CCR)
+	var ccr CreateCommentRequest
+	err := c.ShouldBindJSON(&ccr)
 	if err != nil {
 		global.Log.Error(err)
 		res.FailWithError(err, CreateCommentRequest{}, c)
@@ -55,15 +55,15 @@ func (CommentApi) CreateComment(c *gin.Context) {
 	client := service.NewMessageServiceClient(conn)
 
 	resp, err := client.CreateCommentMessage(context.Background(), &service.CreateMessageRequest{
-		ObjId:    CCR.ObjID,
-		MemberId: CCR.MemberID,
-		State:    service.State(CCR.State),
-		ObjType:  service.ObjType(CCR.ObjType),
-		Root:     CCR.Root,
-		Parent:   CCR.Parent,
-		Floor:    CCR.Floor,
-		Ip:       CCR.IP,
-		Comment:  CCR.Message,
+		ObjId:    ccr.ObjID,
+		MemberId: ccr.MemberID,
+		State:    service.State(ccr.State),
+		ObjType:  service.ObjType(ccr.ObjType),
+		Root:     ccr.Root,
+		Parent:   ccr.Parent,
+		Floor:    ccr.Floor,
+		Ip:       ccr.IP,
+		Comment:  ccr.Message,
 	})
 
 	if err != nil {
