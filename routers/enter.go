@@ -38,6 +38,7 @@ func InitRouters() *gin.Engine {
 	// 该结构体中定义了SettingsInfoView方法，该方法对应路由/settings/info
 	routerGroupApp.CommentRouter()
 	routerGroupApp.UserRouter()
-	
+	routerGroupApp.SubjectRouter()
+
 	return r
 }
