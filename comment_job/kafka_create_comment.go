@@ -57,7 +57,6 @@ func CreateCommentConsumer() {
 			Hate:      0,
 			State:     int8(cmr.State),
 			ObjType:   int8(cmr.ObjType),
-			Floor:     cmr.Floor,
 		}
 
 		//开启事务修改表
@@ -81,6 +80,21 @@ func CreateCommentConsumer() {
 			}
 
 			//TODO 更新subject表
+			var updates map[string]interface{}
+			if commentIndexModel.Root == 0 { //该comment为根评论
+				updates = map[string]interface{}{
+					"count":      gorm.Expr("count + ?", 1),
+					"all_count":  gorm.Expr("all_count + ?", 1),
+					"root_count": gorm.Expr("root_count + ?", 1),
+				}
+			} else {
+				updates = map[string]interface{}{
+					"count":     gorm.Expr("count + ?", 1),
+					"all_count": gorm.Expr("all_count + ?", 1),
+				}
+			}
+			global.DB.Model(&models.CommentSubjectModels{}).Where("obj_type = ? AND obj_id = ?", commentIndexModel.ObjType,
+				commentIndexModel.ObjID).Updates(updates)
 
 			return nil
 		})

@@ -18,7 +18,7 @@ type CreateCommentRequest struct {
 	ObjID    int64 `json:"obj_id,omitempty"`    //对象id 即该条评论对应的对象 冗余设计
 	State    int8  `json:"state,omitempty"`     //状态(0-正常、1-隐藏)
 	ObjType  int8  `json:"obj_type,omitempty"`  //对象类型 冗余设计
-	Floor    int32 `json:"floor,omitempty"`     //评论楼层
+	//Floor    int32 `json:"floor,omitempty"`     //评论楼层
 
 	IP int64 `json:"ip,omitempty"`
 
@@ -61,9 +61,9 @@ func (CommentApi) CreateComment(c *gin.Context) {
 		ObjType:  service.ObjType(ccr.ObjType),
 		Root:     ccr.Root,
 		Parent:   ccr.Parent,
-		Floor:    ccr.Floor,
-		Ip:       ccr.IP,
-		Comment:  ccr.Message,
+		//Floor:    ccr.Floor,
+		Ip:      ccr.IP,
+		Comment: ccr.Message,
 	})
 
 	if err != nil {

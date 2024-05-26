@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package message;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "./service";
 
 enum State {
@@ -52,6 +54,24 @@ message GetCommentResponse {
   int64  IP = 12;
   string Message = 13;
 }
+
+message CommentSubject {
+  int64 id = 1;
+  int32 obj_type = 2;
+  int64 obj_id = 3;
+  int64 member_id = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  int32 count = 7;
+  int32 root_count = 8;
+  int32 all_count = 9;
+  int32 state = 10;
+}
+
+message Content {
+  string content = 1;
+}
+
 
 service MessageService {
   rpc CreateCommentMessage (CreateMessageRequest) returns (CreateMessageResponse);
