@@ -35,24 +35,22 @@ message CreateMessageResponse {
 }
 
 message GetCommentRequest {
-  int64  ObjID = 4;
-  int32  ObjType = 10;
+  int64  ObjID = 1;
+  int32  ObjType = 2;
+  int32  offset = 3;
 }
 
 message GetCommentResponse {
-  int64  Root = 1;
-  int64  Parent = 2;
-  int64  MemberID = 3;
-  int64  ObjID = 4;
-  int32  Count = 5;
-  int32  RootCount = 6;
-  int32  Like = 7;
-  int32  Hate = 8;
-  int32  State = 9;
-  int32  ObjType = 10;
-  int32  Floor = 11;
-  int64  IP = 12;
-  string Message = 13;
+  repeated int64  Root = 1;
+  repeated int64  Parent = 2;
+  repeated int64  MemberID = 3;
+  repeated int32  Count = 4;
+  repeated int32  RootCount = 5;
+  repeated int32  Like = 6;
+  repeated int32  Hate = 7;
+  repeated int32  State = 8;
+  repeated int64  IP = 9;
+  repeated string Message = 10;
 }
 
 message CommentSubject {

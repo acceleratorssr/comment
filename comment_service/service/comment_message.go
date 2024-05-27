@@ -4,6 +4,7 @@ import (
 	"comment/global"
 	"context"
 	"google.golang.org/protobuf/proto"
+	"strconv"
 	"sync"
 )
 
@@ -42,12 +43,45 @@ func (c *CommentMessage) CreateCommentMessage(ctx context.Context, request *Crea
 	return &CMR, nil
 }
 
-// GetComment 从redis查询，如果没有则从mysql查询，如果需要刷新redis则交给kafka异步处理
-func (c *CommentMessage) GetComment(context.Context, *GetCommentRequest) (*GetCommentResponse, error) {
-	GCR := GetCommentResponse{
-		ObjID: 1,
+// GetComment 先去redis内拿数据，如果没有则透传到mysql，并且使用kafka回源
+func (c *CommentMessage) GetComment(ctx context.Context, request *GetCommentRequest) (*GetCommentResponse, error) {
+	// TODO 先去redis内拿数据，如果没有则透传到mysql，并且使用kafka回源
+
+	oidTypeSort := strconv.FormatInt(request.ObjID, 10) + "_" + strconv.FormatInt(int64(request.ObjType), 10) + "sortByDESC"
+	get := global.Redis.ZRange(ctx, oidTypeSort, 0, -1)
+	if get.Err() != nil {
+		global.Log.Info("缓存失效")
+	} else {
+		// TODO 一次返回10条数据
+		length := int32(len(get.Val()))
+		var gcr GetCommentResponse
+		for i := request.Offset; i < length; i++ {
+			cs := CommentSubject{}
+			err := proto.Unmarshal([]byte(get.Val()[i]), &cs)
+			if err != nil {
+				return nil, err
+			}
+			AddCommentToResponse(&gcr, 0, 0, 0, cs.Count, cs.RootCount, 0, 0, cs.State, 0, "")
+		}
+
+		return &gcr, nil
 	}
+
+	GCR := GetCommentResponse{}
 	return &GCR, nil
+}
+
+func AddCommentToResponse(response *GetCommentResponse, root, parent, memberID int64, count, rootCount, like, hate, state int32, ip int64, message string) {
+	response.Root = append(response.Root, root)
+	response.Parent = append(response.Parent, parent)
+	response.MemberID = append(response.MemberID, memberID)
+	response.Count = append(response.Count, count)
+	response.RootCount = append(response.RootCount, rootCount)
+	response.Like = append(response.Like, like)
+	response.Hate = append(response.Hate, hate)
+	response.State = append(response.State, state)
+	response.IP = append(response.IP, ip)
+	response.Message = append(response.Message, message)
 }
 
 func (c *CommentMessage) mustEmbedUnimplementedMessageServiceServer() {}
