@@ -5,9 +5,10 @@ import (
 	"comment/global"
 	"comment/models"
 	"context"
-	"fmt"
+	"github.com/redis/go-redis/v9"
 	"github.com/segmentio/kafka-go"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"gorm.io/gorm"
 	"log"
 	"strconv"
@@ -59,6 +60,7 @@ func CreateCommentConsumer() {
 			ObjType:   int8(cmr.ObjType),
 		}
 
+		var cms models.CommentSubjectModels
 		//开启事务修改表
 		err = global.DB.Transaction(func(tx *gorm.DB) error {
 			err = global.DB.Create(&commentIndexModel).Error
@@ -94,14 +96,51 @@ func CreateCommentConsumer() {
 				}
 			}
 			global.DB.Model(&models.CommentSubjectModels{}).Where("obj_type = ? AND obj_id = ?", commentIndexModel.ObjType,
-				commentIndexModel.ObjID).Updates(updates)
+				commentIndexModel.ObjID).Updates(updates).Scan(&cms)
 
 			return nil
 		})
 		if err != nil {
 			// TODO 错误处理
 		}
+		global.Log.Info("message apply in mysql")
 
-		fmt.Println("message apply in mysql")
+		// 更新缓存 comment_subject_cache
+		cs := service.CommentSubject{
+			Id:        cms.ID,
+			ObjType:   int32(cms.ObjType),
+			ObjId:     cms.ObjID,
+			MemberId:  cms.MemberID,
+			CreatedAt: timestamppb.New(cms.CreatedAt),
+			UpdatedAt: timestamppb.New(cms.UpdatedAt),
+			Count:     cms.Count,
+			RootCount: cms.RootCount,
+			AllCount:  cms.AllCount,
+			State:     int32(cms.State),
+		}
+		csMarshal, err := proto.Marshal(&cs)
+		if err != nil {
+			return
+		}
+
+		ctx := context.Background()
+		oidType := strconv.FormatInt(cms.ID, 10) + "_" + strconv.FormatInt(int64(cms.ObjType), 10)
+		// msg.Value是序列化后的数据
+		global.Redis.Set(ctx, oidType, csMarshal, 0)
+
+		// 增量缓存 comment_index_cache
+		oidTypeSort := strconv.FormatInt(cms.ID, 10) + "_" + strconv.FormatInt(int64(cms.ObjType), 10) + "sortByDESC"
+		score := float64(commentIndexModel.Like + commentIndexModel.RootCount)
+		global.Redis.ZAdd(ctx, oidTypeSort, []redis.Z{{Score: score, Member: commentIndexModel.ID}}...)
+
+		// comment_content_cache
+		content := service.Content{Content: cmr.Comment}
+		contentMarshal, err := proto.Marshal(&content)
+		if err != nil {
+			return
+		}
+
+		global.Redis.Set(ctx, strconv.FormatInt(commentIndexModel.ID, 10), contentMarshal, 0)
+		global.Log.Info("message apply in redis")
 	}
 }

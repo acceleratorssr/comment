@@ -6,30 +6,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // GetComment 获取评论
 func (CommentApi) GetComment(c *gin.Context) {
-	var opts []grpc.DialOption
-	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-
-	conn, err := grpc.NewClient(global.Grpc.Addr, opts...)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer func(conn *grpc.ClientConn) {
-		err := conn.Close()
-		if err != nil {
-			fmt.Println(err)
-			global.Log.Error(err)
-		}
-	}(conn)
-
-	client := service.NewMessageServiceClient(conn)
-
+	client := service.NewMessageServiceClient(global.GrpcConn)
 	resp, err := client.GetComment(context.Background(), &service.GetCommentRequest{
 		ObjID: 1,
 	})

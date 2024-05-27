@@ -5,10 +5,7 @@ import (
 	"comment/global"
 	"comment/models/res"
 	"context"
-	"fmt"
 	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type CreateCommentRequest struct {
@@ -35,25 +32,7 @@ func (CommentApi) CreateComment(c *gin.Context) {
 		return
 	}
 
-	var opts []grpc.DialOption
-	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-
-	conn, err := grpc.NewClient(global.Grpc.Addr, opts...)
-	if err != nil {
-		global.Log.Error(err)
-		res.FailWithMessage(err.Error(), c)
-		return
-	}
-	defer func(conn *grpc.ClientConn) {
-		err := conn.Close()
-		if err != nil {
-			fmt.Println(err)
-			global.Log.Error(err)
-		}
-	}(conn)
-
-	client := service.NewMessageServiceClient(conn)
-
+	client := service.NewMessageServiceClient(global.GrpcConn)
 	resp, err := client.CreateCommentMessage(context.Background(), &service.CreateMessageRequest{
 		ObjId:    ccr.ObjID,
 		MemberId: ccr.MemberID,

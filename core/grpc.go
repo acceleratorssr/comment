@@ -5,15 +5,16 @@ import (
 	"comment/global"
 	"fmt"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net"
 )
 
-func Grpc() {
-	go InitGrpc()
+func GrpcServer() {
+	go InitGrpcServer()
 }
 
-func InitGrpc() {
+func InitGrpcServer() {
 	global.Grpc = &global.Config.Grpc
 
 	lis, err := net.Listen("tcp", global.Grpc.Addr)
@@ -27,4 +28,21 @@ func InitGrpc() {
 
 	fmt.Println("grpc server start")
 	grpcServer.Serve(lis)
+}
+
+func GrpcClient() *grpc.ClientConn {
+	return InitGrpcClient()
+}
+
+func InitGrpcClient() *grpc.ClientConn {
+	var opts []grpc.DialOption
+	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+
+	conn, err := grpc.NewClient(global.Grpc.Addr, opts...)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+
+	return conn
 }

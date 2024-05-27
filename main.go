@@ -5,6 +5,8 @@ import (
 	"comment/flag"
 	"comment/global"
 	"comment/routers"
+	"fmt"
+	"google.golang.org/grpc"
 )
 
 // @title server API文档
@@ -18,10 +20,19 @@ func main() {
 	// 初始化日志
 	global.Log = core.InitLogger()
 	// 初始化数据库
+	core.GrpcServer()
 	global.DB = core.Gorm()
 	global.Redis = core.Redis()
-	core.Grpc()
+	global.GrpcConn = core.GrpcClient()
 	core.Kafka()
+
+	defer func(conn *grpc.ClientConn) {
+		err := conn.Close()
+		if err != nil {
+			fmt.Println(err)
+			global.Log.Error(err)
+		}
+	}(global.GrpcConn)
 
 	//// 初始化es
 	//global.Elasticsearch = core.ESInit()
