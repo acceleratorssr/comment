@@ -9,5 +9,6 @@ func Kafka() {
 }
 
 func InitKafka() {
-	commentjob.CreateCommentConsumer()
+	go commentjob.CreateCommentConsumer()
+	go commentjob.RepopulateComment()
 }

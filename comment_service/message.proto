@@ -6,10 +6,6 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "./service";
 
-enum State {
-  NORMAL = 0;
-  HIDDEN = 1;
-}
 
 enum ObjType {
   Video = 0;
@@ -20,14 +16,12 @@ message CreateMessageRequest {
   int64 obj_id = 1;
   int64 member_id = 2;
 
-  State state = 3;
-  ObjType obj_type = 4;
+  ObjType obj_type = 3;
 
-  int64 root = 5;
-  int64 parent = 6;
-  int32 floor = 7;
-  int64 ip = 8;
-  string comment = 9; // 评论内容
+  int64 root = 4;
+  int64 parent = 5;
+  int32 floor = 6;
+  string comment = 7; // 评论内容
 }
 
 message CreateMessageResponse {
@@ -36,26 +30,26 @@ message CreateMessageResponse {
 
 message GetCommentRequest {
   int64  ObjID = 1;
-  int32  ObjType = 2;
+  ObjType  ObjType = 2;
   int32  offset = 3;
 }
 
 message GetCommentResponse {
-  repeated int64  Root = 1;
-  repeated int64  Parent = 2;
-  repeated int64  MemberID = 3;
-  repeated int32  Count = 4;
-  repeated int32  RootCount = 5;
-  repeated int32  Like = 6;
-  repeated int32  Hate = 7;
-  repeated int32  State = 8;
-  repeated int64  IP = 9;
+  repeated int64  id = 1;
+  repeated int64  Root = 2;
+  repeated int64  Parent = 3;
+  repeated int64  MemberID = 4;
+  repeated int32  Count = 5;
+  repeated int32  RootCount = 6;
+  repeated int32  AllCount = 7;
+  repeated int32  Like = 8;
+  repeated int32  Hate = 9;
   repeated string Message = 10;
 }
 
 message CommentSubject {
   int64 id = 1;
-  int32 obj_type = 2;
+  ObjType obj_type = 2;
   int64 obj_id = 3;
   int64 member_id = 4;
   google.protobuf.Timestamp created_at = 5;
@@ -63,7 +57,6 @@ message CommentSubject {
   int32 count = 7;
   int32 root_count = 8;
   int32 all_count = 9;
-  int32 state = 10;
 }
 
 message Content {

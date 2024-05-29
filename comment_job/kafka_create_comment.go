@@ -46,7 +46,7 @@ func CreateCommentConsumer() {
 			log.Printf("failed to commit message: %v", err)
 		}
 
-		//TODO 写入mysql，并刷新到redis
+		//写入mysql
 		commentIndexModel := models.CommentIndexModels{
 			Root:      cmr.Root,
 			Parent:    cmr.Parent,
@@ -56,7 +56,6 @@ func CreateCommentConsumer() {
 			RootCount: 0,
 			Like:      0,
 			Hate:      0,
-			State:     int8(cmr.State),
 			ObjType:   int8(cmr.ObjType),
 		}
 
@@ -71,7 +70,6 @@ func CreateCommentConsumer() {
 
 			commentCommentModel := models.CommentContentModels{
 				CommentID:   commentIndexModel.ID,
-				IP:          cmr.Ip,
 				AtMemberIds: strconv.FormatInt(cmr.MemberId, 10),
 				Message:     cmr.Comment,
 			}
@@ -81,7 +79,7 @@ func CreateCommentConsumer() {
 				return err
 			}
 
-			//TODO 更新subject表
+			//更新subject表
 			var updates map[string]interface{}
 			if commentIndexModel.Root == 0 { //该comment为根评论
 				updates = map[string]interface{}{
@@ -108,7 +106,7 @@ func CreateCommentConsumer() {
 		// 更新缓存 comment_subject_cache
 		cs := service.CommentSubject{
 			Id:        cms.ID,
-			ObjType:   int32(cms.ObjType),
+			ObjType:   service.ObjType(cms.ObjType),
 			ObjId:     cms.ObjID,
 			MemberId:  cms.MemberID,
 			CreatedAt: timestamppb.New(cms.CreatedAt),
@@ -116,7 +114,6 @@ func CreateCommentConsumer() {
 			Count:     cms.Count,
 			RootCount: cms.RootCount,
 			AllCount:  cms.AllCount,
-			State:     int32(cms.State),
 		}
 		csMarshal, err := proto.Marshal(&cs)
 		if err != nil {
@@ -124,14 +121,14 @@ func CreateCommentConsumer() {
 		}
 
 		ctx := context.Background()
-		oidType := strconv.FormatInt(cms.ID, 10) + "_" + strconv.FormatInt(int64(cms.ObjType), 10)
+		oidType := strconv.FormatInt(cms.ObjID, 10) + "_" + strconv.FormatInt(int64(cms.ObjType), 10)
 		// msg.Value是序列化后的数据
 		global.Redis.Set(ctx, oidType, csMarshal, 0)
 
 		// 增量缓存 comment_index_cache
-		oidTypeSort := strconv.FormatInt(cms.ID, 10) + "_" + strconv.FormatInt(int64(cms.ObjType), 10) + "sortByDESC"
+		oidTypeSort := strconv.FormatInt(cms.ObjID, 10) + "_" + strconv.FormatInt(int64(cms.ObjType), 10) + "sortByDESC"
 		score := float64(commentIndexModel.Like + commentIndexModel.RootCount)
-		global.Redis.ZAdd(ctx, oidTypeSort, []redis.Z{{Score: score, Member: commentIndexModel.ID}}...)
+		global.Redis.ZAdd(ctx, oidTypeSort, []redis.Z{{Score: score, Member: strconv.Itoa(int(commentIndexModel.ID))}}...)
 
 		// comment_content_cache
 		content := service.Content{Content: cmr.Comment}

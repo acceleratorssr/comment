@@ -22,12 +22,10 @@ func (c *CommentMessage) CreateCommentMessage(ctx context.Context, request *Crea
 	data, err := proto.Marshal(&CreateMessageRequest{
 		ObjId:    request.ObjId,
 		MemberId: request.MemberId,
-		State:    request.State,
 		ObjType:  request.ObjType,
 		Root:     request.Root,
 		Parent:   request.Parent,
 		Floor:    request.Floor,
-		Ip:       request.Ip,
 		Comment:  request.Comment,
 	})
 	if err != nil {
@@ -47,40 +45,66 @@ func (c *CommentMessage) CreateCommentMessage(ctx context.Context, request *Crea
 func (c *CommentMessage) GetComment(ctx context.Context, request *GetCommentRequest) (*GetCommentResponse, error) {
 	// TODO 先去redis内拿数据，如果没有则透传到mysql，并且使用kafka回源
 
-	oidTypeSort := strconv.FormatInt(request.ObjID, 10) + "_" + strconv.FormatInt(int64(request.ObjType), 10) + "sortByDESC"
-	get := global.Redis.ZRange(ctx, oidTypeSort, 0, -1)
-	if get.Err() != nil {
-		global.Log.Info("缓存失效")
+	var gcr GetCommentResponse
+	// 先查对象缓存
+	oidType := strconv.FormatInt(request.ObjID, 10) + "_" + strconv.FormatInt(int64(request.ObjType), 10)
+	getSub := global.Redis.Get(ctx, oidType)
+	if getSub.Err() != nil {
+		global.Log.Info("对象表缓存失效")
 	} else {
-		// TODO 一次返回10条数据
-		length := int32(len(get.Val()))
-		var gcr GetCommentResponse
-		for i := request.Offset; i < length; i++ {
-			cs := CommentSubject{}
-			err := proto.Unmarshal([]byte(get.Val()[i]), &cs)
-			if err != nil {
-				return nil, err
-			}
-			AddCommentToResponse(&gcr, 0, 0, 0, cs.Count, cs.RootCount, 0, 0, cs.State, 0, "")
+		cs := CommentSubject{}
+		err := proto.Unmarshal([]byte(getSub.Val()), &cs)
+		if err != nil {
+			return nil, err
 		}
-
-		return &gcr, nil
+		AddSubToResponse(&gcr, cs.Count, cs.RootCount, cs.AllCount)
 	}
 
-	GCR := GetCommentResponse{}
-	return &GCR, nil
+	// 再查评论索引缓存
+	oidTypeSort := strconv.FormatInt(request.ObjID, 10) + "_" + strconv.FormatInt(int64(request.ObjType), 10) + "sortByDESC"
+	getIndex := global.Redis.ZRange(ctx, oidTypeSort, 0, -1)
+	if getIndex.Err() != nil {
+		global.Log.Info("评论索引表缓存失效")
+	} else {
+		length := int32(len(getIndex.Val()))
+		// TODO 从Offset开始，一次返回10条数据
+		for i := request.Offset; i < length; i++ {
+			s, _ := strconv.Atoi(getIndex.Val()[i])
+			AddIndexToResponse(&gcr, int64(s))
+		}
+	}
+
+	// 最后查评论内容缓存
+	content := Content{}
+	for i := 0; i < len(gcr.Id); i++ {
+		getComment := global.Redis.Get(ctx, strconv.FormatInt(gcr.Id[i], 10))
+		err := proto.Unmarshal([]byte(getComment.Val()), &content)
+		if err != nil {
+			return nil, err
+		}
+		AddCommentToResponse(&gcr, content.Content)
+	}
+
+	return &gcr, nil
 }
 
-func AddCommentToResponse(response *GetCommentResponse, root, parent, memberID int64, count, rootCount, like, hate, state int32, ip int64, message string) {
-	response.Root = append(response.Root, root)
-	response.Parent = append(response.Parent, parent)
+func Add(response *GetCommentResponse, memberID int64, like, hate int32) {
 	response.MemberID = append(response.MemberID, memberID)
-	response.Count = append(response.Count, count)
-	response.RootCount = append(response.RootCount, rootCount)
 	response.Like = append(response.Like, like)
 	response.Hate = append(response.Hate, hate)
-	response.State = append(response.State, state)
-	response.IP = append(response.IP, ip)
+}
+
+func AddSubToResponse(response *GetCommentResponse, count, rootCount, AllCount int32) {
+	response.Count = append(response.Count, count)
+	response.RootCount = append(response.RootCount, rootCount)
+	response.AllCount = append(response.RootCount, AllCount)
+}
+
+func AddIndexToResponse(response *GetCommentResponse, ID int64) {
+	response.Id = append(response.Id, ID)
+}
+
+func AddCommentToResponse(response *GetCommentResponse, message string) {
 	response.Message = append(response.Message, message)
 }
 
