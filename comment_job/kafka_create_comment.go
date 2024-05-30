@@ -46,6 +46,8 @@ func CreateCommentConsumer() {
 			log.Printf("failed to commit message: %v", err)
 		}
 
+		// TODO 判断 ObjId 和 ObjType是否存在
+
 		//写入mysql
 		commentIndexModel := models.CommentIndexModels{
 			Root:      cmr.Root,
@@ -120,6 +122,8 @@ func CreateCommentConsumer() {
 			return
 		}
 
+		// TODO like & hate?
+
 		ctx := context.Background()
 		oidType := strconv.FormatInt(cms.ObjID, 10) + "_" + strconv.FormatInt(int64(cms.ObjType), 10)
 		// msg.Value是序列化后的数据
@@ -128,7 +132,8 @@ func CreateCommentConsumer() {
 		// 增量缓存 comment_index_cache
 		oidTypeSort := strconv.FormatInt(cms.ObjID, 10) + "_" + strconv.FormatInt(int64(cms.ObjType), 10) + "sortByDESC"
 		score := float64(commentIndexModel.Like + commentIndexModel.RootCount)
-		global.Redis.ZAdd(ctx, oidTypeSort, []redis.Z{{Score: score, Member: strconv.Itoa(int(commentIndexModel.ID))}}...)
+		commentIndexAndMemberID := strconv.Itoa(int(commentIndexModel.ID)) + "_" + strconv.Itoa(int(commentIndexModel.MemberID))
+		global.Redis.ZAdd(ctx, oidTypeSort, []redis.Z{{Score: score, Member: commentIndexAndMemberID}}...)
 
 		// comment_content_cache
 		content := service.Content{Content: cmr.Comment}

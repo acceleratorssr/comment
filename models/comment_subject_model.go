@@ -12,5 +12,4 @@ type CommentSubjectModels struct {
 	Count     int32     `json:"count,omitempty"`                                                     //评论总数，记录楼层号 4字节对齐
 	RootCount int32     `json:"root_count,omitempty"`                                                //根评论总数
 	AllCount  int32     `json:"all_count,omitempty"`                                                 //评论加回复总数
-	State     int8      `json:"state,omitempty"`                                                     //状态 （0正常，1隐藏）1字节对齐
 }

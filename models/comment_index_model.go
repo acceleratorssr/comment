@@ -15,7 +15,6 @@ type CommentIndexModels struct {
 	RootCount  int32     `json:"root_count,omitempty"`                                                 //根评论总数
 	Like       int32     `json:"like,omitempty"`                                                       //点赞数
 	Hate       int32     `json:"hate,omitempty"`                                                       //点踩数
-	State      int8      `json:"state,omitempty"`                                                      //状态(0-正常、1-隐藏)
 	//Floor          int32                `json:"floor,omitempty"`                                                      //评论楼层
 	CommentContent CommentContentModels `gorm:"foreignKey:CommentID"`
 }

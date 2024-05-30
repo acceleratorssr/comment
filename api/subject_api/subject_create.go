@@ -10,7 +10,6 @@ import (
 type subjectCreateRequest struct {
 	ObjID    int64 `json:"obj_id,omitempty"`
 	MemberID int64 `json:"member_id,omitempty"`
-	State    int8  `json:"state,omitempty"`
 	ObjType  int8  `json:"obj_type,omitempty"` //0为视频 1为文章
 }
 
@@ -25,7 +24,6 @@ func (SubjectApi) SubjectCreateView(c *gin.Context) {
 	csm := models.CommentSubjectModels{
 		ObjID:    scq.ObjID,
 		MemberID: scq.MemberID,
-		State:    scq.State,
 		ObjType:  scq.ObjType,
 	}
 

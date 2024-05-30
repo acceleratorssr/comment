@@ -35,11 +35,5 @@ func (CommentApi) GetComment(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{
-		"code": 200,
-		"msg":  "success",
-		"data": gin.H{
-			"name": resp,
-		},
-	})
+	res.OKWithData(resp, c)
 }
