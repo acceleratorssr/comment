@@ -30,3 +30,36 @@ func producer(request []byte) {
 	}
 	fmt.Println("producer success")
 }
+
+//
+//func initKafka() (writer *kafka.Writer) {
+//	writer = &kafka.Writer{
+//		Addr:         kafka.TCP("localhost:9092"),
+//		Topic:        "create_comment",
+//		Balancer:     &kafka.LeastBytes{},
+//		WriteTimeout: 10 * time.Second,
+//	}
+//	return
+//}
+//
+//func closeKafka() {
+//	if writer != nil {
+//		err := writer.Close()
+//		if err != nil {
+//			log.Fatal("failed to close writer:", err)
+//		}
+//	}
+//}
+//
+//func NewProducer(request []byte) {
+//	err := writer.WriteMessages(context.Background(),
+//		kafka.Message{
+//			Value: request,
+//		},
+//	)
+//	if err != nil {
+//		log.Println("failed to write messages:", err)
+//		return
+//	}
+//	fmt.Println("producer success")
+//}

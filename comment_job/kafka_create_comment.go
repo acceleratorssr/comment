@@ -5,10 +5,8 @@ import (
 	"comment/global"
 	"comment/models"
 	"context"
-	"github.com/redis/go-redis/v9"
 	"github.com/segmentio/kafka-go"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"gorm.io/gorm"
 	"log"
 	"strconv"
@@ -61,7 +59,7 @@ func CreateCommentConsumer() {
 			ObjType:   int8(cmr.ObjType),
 		}
 
-		var cms models.CommentSubjectModels
+		var csm models.CommentSubjectModels
 		//开启事务修改表
 		err = global.DB.Transaction(func(tx *gorm.DB) error {
 			err = global.DB.Create(&commentIndexModel).Error
@@ -96,7 +94,7 @@ func CreateCommentConsumer() {
 				}
 			}
 			global.DB.Model(&models.CommentSubjectModels{}).Where("obj_type = ? AND obj_id = ?", commentIndexModel.ObjType,
-				commentIndexModel.ObjID).Updates(updates).Scan(&cms)
+				commentIndexModel.ObjID).Updates(updates).Scan(&csm)
 
 			return nil
 		})
@@ -105,44 +103,15 @@ func CreateCommentConsumer() {
 		}
 		global.Log.Info("message apply in mysql")
 
-		// 更新缓存 comment_subject_cache
-		cs := service.CommentSubject{
-			Id:        cms.ID,
-			ObjType:   service.ObjType(cms.ObjType),
-			ObjId:     cms.ObjID,
-			MemberId:  cms.MemberID,
-			CreatedAt: timestamppb.New(cms.CreatedAt),
-			UpdatedAt: timestamppb.New(cms.UpdatedAt),
-			Count:     cms.Count,
-			RootCount: cms.RootCount,
-			AllCount:  cms.AllCount,
-		}
-		csMarshal, err := proto.Marshal(&cs)
-		if err != nil {
-			return
-		}
-
 		// TODO like & hate?
-
+		// 更新缓存 comment_subject_cache
 		ctx := context.Background()
-		oidType := strconv.FormatInt(cms.ObjID, 10) + "_" + strconv.FormatInt(int64(cms.ObjType), 10)
-		// msg.Value是序列化后的数据
-		global.Redis.Set(ctx, oidType, csMarshal, 0)
+		go addSubjectCache(ctx, &csm)
 
 		// 增量缓存 comment_index_cache
-		oidTypeSort := strconv.FormatInt(cms.ObjID, 10) + "_" + strconv.FormatInt(int64(cms.ObjType), 10) + "sortByDESC"
-		score := float64(commentIndexModel.Like + commentIndexModel.RootCount)
-		commentIndexAndMemberID := strconv.Itoa(int(commentIndexModel.ID)) + "_" + strconv.Itoa(int(commentIndexModel.MemberID))
-		global.Redis.ZAdd(ctx, oidTypeSort, []redis.Z{{Score: score, Member: commentIndexAndMemberID}}...)
+		go addCommentIndexCache(ctx, csm.ObjID, int64(csm.ObjType), &commentIndexModel)
 
 		// comment_content_cache
-		content := service.Content{Content: cmr.Comment}
-		contentMarshal, err := proto.Marshal(&content)
-		if err != nil {
-			return
-		}
-
-		global.Redis.Set(ctx, strconv.FormatInt(commentIndexModel.ID, 10), contentMarshal, 0)
-		global.Log.Info("message apply in redis")
+		go addCommentCommentCache(ctx, cmr.Comment, commentIndexModel.ID)
 	}
 }

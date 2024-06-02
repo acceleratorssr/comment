@@ -45,25 +45,31 @@ func (c *CommentMessage) CreateCommentMessage(ctx context.Context, request *Crea
 
 // GetComment 先去redis内拿数据，如果没有则透传到mysql，并且使用kafka回源
 func (c *CommentMessage) GetComment(ctx context.Context, request *GetCommentRequest) (*GetCommentResponse, error) {
-	var gcr GetCommentResponse
+	var gcResp GetCommentResponse
+	s := GetCommentRequest{
+		ObjID:   request.ObjID,
+		ObjType: request.ObjType,
+		Offset:  request.Offset,
+	}
+	msg, _ := proto.Marshal(&s)
 	// 先查对象缓存
 	oidType := strconv.FormatInt(request.ObjID, 10) + "_" + strconv.FormatInt(int64(request.ObjType), 10)
 	getSub := global.Redis.Get(ctx, oidType)
 	if getSub.Err() != nil {
 		global.Log.Info("对象表缓存失效")
-		// TODO 回源
+		// 回源
+		go backToSource(msg)
 
-		// TODO 透传到MySQL拿数据
-		var csm models.CommentSubjectModels
-		global.DB.Select("count, root_count, all_count").Where("obj_id = ? and obj_type = ?", request.ObjID, request.ObjType).Take(&csm)
-		AddSubToResponse(&gcr, csm.Count, csm.RootCount, csm.AllCount)
+		// 透传到MySQL拿数据
+		FetchDataFromMySQL(&gcResp, request.ObjID, int64(request.ObjType), request.Offset)
+		return &gcResp, nil
 	} else {
 		cs := CommentSubject{}
 		err := proto.Unmarshal([]byte(getSub.Val()), &cs)
 		if err != nil {
 			return nil, err
 		}
-		AddSubToResponse(&gcr, cs.Count, cs.RootCount, cs.AllCount)
+		AddSubToResponse(&gcResp, cs.Count, cs.RootCount, cs.AllCount)
 	}
 
 	// 再查评论索引缓存
@@ -71,13 +77,13 @@ func (c *CommentMessage) GetComment(ctx context.Context, request *GetCommentRequ
 	getIndex := global.Redis.ZRange(ctx, oidTypeSort, 0, -1)
 	if getIndex.Err() != nil {
 		global.Log.Info("评论索引表缓存失效")
-		// TODO 回源
-		// TODO 透传到MySQL拿数据
-		var cim []models.CommentIndexModels
-		global.DB.Select("id, member_id").Where("obj_id = ? and obj_type = ?", request.ObjID, request.ObjType).Offset(int(request.Offset)).Limit(10).Find(&cim)
-		for i := 0; i < 10; i++ {
-			AddIndexToResponse(&gcr, cim[i].ID, cim[i].MemberID)
-		}
+		// 回源
+		go backToSource(msg)
+
+		// 透传到MySQL拿数据
+		gcResp = GetCommentResponse{}
+		FetchDataFromMySQL(&gcResp, request.ObjID, int64(request.ObjType), request.Offset)
+		return &gcResp, nil
 	} else {
 		length := int32(len(getIndex.Val()))
 		// 从Offset开始，一次最多返回10条数据
@@ -86,26 +92,24 @@ func (c *CommentMessage) GetComment(ctx context.Context, request *GetCommentRequ
 			ids := strings.Split(s, "_")
 			id, _ := strconv.Atoi(ids[0])
 			memberID, _ := strconv.Atoi(ids[1])
-			AddIndexToResponse(&gcr, int64(id), int64(memberID))
+			AddIndexToResponse(&gcResp, int64(id), int64(memberID))
 		}
 	}
 
 	// 最后查评论内容缓存
 	content := Content{}
 	var comment []string
-	for i := 0; i < len(gcr.Id); i++ {
-		getComment := global.Redis.Get(ctx, strconv.FormatInt(gcr.Id[i], 10))
+	for i := 0; i < len(gcResp.Id); i++ {
+		getComment := global.Redis.Get(ctx, strconv.FormatInt(gcResp.Id[i], 10))
 		if getComment.Err() != nil {
 			global.Log.Info("评论内容表缓存失效")
-			// TODO 回源
-			// TODO 透传到MySQL拿数据
-			var ccm []models.CommentContentModels
-			global.DB.Select("id, member_id").Where("comment_id in ?", gcr.Id).Find(&ccm)
-			for j := 0; j < 10; j++ {
-				AddCommentToResponse(&gcr, ccm[j].Message)
-			}
+			// 回源
+			go backToSource(msg)
 
-			break
+			// 透传到MySQL拿数据
+			gcResp = GetCommentResponse{}
+			FetchDataFromMySQL(&gcResp, request.ObjID, int64(request.ObjType), request.Offset)
+			return &gcResp, nil
 		} else {
 			err := proto.Unmarshal([]byte(getComment.Val()), &content)
 			if err != nil {
@@ -113,10 +117,10 @@ func (c *CommentMessage) GetComment(ctx context.Context, request *GetCommentRequ
 			}
 			comment = append(comment, content.Content)
 		}
-		AddCommentToResponse(&gcr, comment...)
 	}
+	AddCommentToResponse(&gcResp, comment...)
 
-	return &gcr, nil
+	return &gcResp, nil
 }
 
 func Add(response *GetCommentResponse, like, hate int32) {
@@ -137,6 +141,25 @@ func AddIndexToResponse(response *GetCommentResponse, id, memberID int64) {
 
 func AddCommentToResponse(response *GetCommentResponse, message ...string) {
 	response.Message = append(response.Message, message...)
+}
+
+func FetchDataFromMySQL(gcResp *GetCommentResponse, obiID, objType int64, offset int32) {
+	var csm models.CommentSubjectModels
+	global.DB.Select("count, root_count, all_count").Where("obj_id = ? and obj_type = ?", obiID, objType).Take(&csm)
+	AddSubToResponse(gcResp, csm.Count, csm.RootCount, csm.AllCount)
+
+	var cim []models.CommentIndexModels
+	global.DB.Select("id, member_id").Where("obj_id = ? and obj_type = ?", obiID, objType).Offset(int(offset)).Limit(10).Find(&cim)
+	for i := 0; i < len(cim); i++ {
+		AddIndexToResponse(gcResp, cim[i].ID, cim[i].MemberID)
+	}
+
+	var ccm []models.CommentContentModels
+	global.DB.Select("message").Where("comment_id in ?", gcResp.Id).Find(&ccm)
+	for j := 0; j < len(ccm); j++ {
+		AddCommentToResponse(gcResp, ccm[j].Message)
+	}
+
 }
 
 func (c *CommentMessage) mustEmbedUnimplementedMessageServiceServer() {}

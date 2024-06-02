@@ -3,6 +3,7 @@ package comment_job
 import (
 	"comment/comment_service/service"
 	"comment/global"
+	"comment/models"
 	"context"
 	"github.com/segmentio/kafka-go"
 	"google.golang.org/protobuf/proto"
@@ -29,8 +30,8 @@ func RepopulateComment() {
 			break
 		}
 
-		var cmr service.GetCommentRequest
-		err = proto.Unmarshal(msg.Value, &cmr)
+		var gcr service.GetCommentRequest
+		err = proto.Unmarshal(msg.Value, &gcr)
 		if err != nil {
 			global.Log.Warn("unmarshal error")
 			return
@@ -40,15 +41,37 @@ func RepopulateComment() {
 			log.Printf("failed to commit message: %v", err)
 		}
 
+		// 回填一个对象的多个评论
+		var csm models.CommentSubjectModels
+		var cim []models.CommentIndexModels
+		var ccm []models.CommentContentModels
 		// TODO 到mysql内查询数据
+		global.DB.Where("obj_id = ? AND obj_type = ?", gcr.ObjID, gcr.ObjType).Offset(int(gcr.Offset)).Take(&csm)
+
+		global.DB.Select("id, member_id").Where("obj_id = ? and obj_type = ?", gcr.ObjID, gcr.ObjType).Offset(int(gcr.Offset)).Limit(10).Find(&cim)
+		var idList []int64
+		for i := 0; i < len(cim); i++ {
+			idList = append(idList, cim[i].ID)
+		}
+
+		global.DB.Select("message").Where("comment_id in ?", idList).Find(&ccm)
+
 		global.Log.Info("message get in mysql")
 
 		// TODO 回填redis
 		// 更新缓存 comment_subject_cache
+		ctx := context.Background()
+		go addSubjectCache(ctx, &csm)
 
 		// 增量缓存 comment_index_cache
+		for i := 0; i < len(cim); i++ {
+			go addCommentIndexCache(ctx, csm.ObjID, int64(csm.ObjType), &cim[i])
+		}
 
 		// comment_content_cache
+		for i := 0; i < len(cim); i++ {
+			go addCommentCommentCache(ctx, ccm[i].Message, cim[i].ID)
+		}
 
 		global.Log.Info("message get in redis")
 	}
