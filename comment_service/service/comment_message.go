@@ -59,7 +59,25 @@ func (c *CommentMessage) GetComment(ctx context.Context, request *GetCommentRequ
 	if getSub.Err() != nil {
 		global.Log.Info("对象表缓存失效")
 		// 回源&返回数据
-		return backToSourceAndGetData(ctx, oidType, request.ObjID, int64(request.ObjType), request.Offset, msg)
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func(gcResp *GetCommentResponse) {
+			defer wg.Done()
+			g, _ := backToSourceAndGetData(ctx, oidType, request.ObjID, int64(request.ObjType), request.Offset, msg)
+			gcResp.Id = g.Id
+			gcResp.Root = g.Root
+			gcResp.Parent = g.Parent
+			gcResp.MemberID = g.MemberID
+			gcResp.Count = g.Count
+			gcResp.RootCount = g.RootCount
+			gcResp.AllCount = g.AllCount
+			gcResp.Like = g.Like
+			gcResp.Hate = g.Hate
+			gcResp.Message = g.Message
+		}(&gcResp)
+		wg.Wait()
+		//return backToSourceAndGetData(ctx, oidType, request.ObjID, int64(request.ObjType), request.Offset, msg)
+		return &gcResp, nil
 	} else {
 		cs := CommentSubject{}
 		err := proto.Unmarshal([]byte(getSub.Val()), &cs)
@@ -151,7 +169,7 @@ func FetchDataFromMySQL(gcResp *GetCommentResponse, obiID, objType int64, offset
 
 func backToSourceAndGetData(ctx context.Context, key string, obiID, ObjType int64, offset int32, msg []byte) (*GetCommentResponse, error) {
 	ch := global.SF.DoChan(key, func() (interface{}, error) {
-		go backToSource(msg)
+		backToSource(msg, key) //TODO 还是被执行多次
 		// 透传到MySQL拿数据
 		gcResp := GetCommentResponse{}
 		FetchDataFromMySQL(&gcResp, obiID, ObjType, offset)
@@ -162,7 +180,7 @@ func backToSourceAndGetData(ctx context.Context, key string, obiID, ObjType int6
 	case <-ctx.Done():
 		return nil, errors.New("ctx_timeout")
 	case data, _ := <-ch:
-		global.SF.Forget(key)
+		//global.SF.Forget(key)
 		return data.Val.(*GetCommentResponse), nil
 	}
 }

@@ -45,7 +45,7 @@ func RepopulateComment() {
 		var csm models.CommentSubjectModels
 		var cim []models.CommentIndexModels
 		var ccm []models.CommentContentModels
-		// TODO 到mysql内查询数据
+		//到mysql内查询数据
 		global.DB.Where("obj_id = ? AND obj_type = ?", gcr.ObjID, gcr.ObjType).Offset(int(gcr.Offset)).Take(&csm)
 
 		global.DB.Select("id, member_id").Where("obj_id = ? and obj_type = ?", gcr.ObjID, gcr.ObjType).Offset(int(gcr.Offset)).Limit(10).Find(&cim)
