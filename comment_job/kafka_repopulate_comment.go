@@ -58,20 +58,25 @@ func RepopulateComment() {
 
 		global.Log.Info("message get in mysql")
 
-		// TODO 回填redis
+		// 回填redis
 		// 更新缓存 comment_subject_cache
 		ctx := context.Background()
-		go addSubjectCache(ctx, &csm)
-
-		// 增量缓存 comment_index_cache
-		for i := 0; i < len(cim); i++ {
-			go addCommentIndexCache(ctx, csm.ObjID, int64(csm.ObjType), &cim[i])
+		comment := make([]string, len(ccm))
+		for i := 0; i < len(ccm); i++ {
+			comment[i] = ccm[i].Message
 		}
 
-		// comment_content_cache
-		for i := 0; i < len(cim); i++ {
-			go addCommentCommentCache(ctx, ccm[i].Message, cim[i].ID)
-		}
+		addSubjectAndCommentCache(ctx, &csm, &cim,
+			comment)
+		//go addSubjectCache(ctx, &csm)
+		//
+		//// 增量缓存 comment_index_cache
+		//go addCommentIndexCache(ctx, csm.ObjID, int64(csm.ObjType), &cim)
+		//
+		//// comment_content_cache
+		//for i := 0; i < len(cim); i++ {
+		//	go addCommentCommentCache(ctx, ccm[i].Message, cim[i].ID)
+		//}
 
 		global.Log.Info("message get in redis")
 	}

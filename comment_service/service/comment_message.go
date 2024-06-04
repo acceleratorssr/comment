@@ -4,6 +4,7 @@ import (
 	"comment/global"
 	"comment/models"
 	"context"
+	"errors"
 	"google.golang.org/protobuf/proto"
 	"strconv"
 	"strings"
@@ -57,12 +58,8 @@ func (c *CommentMessage) GetComment(ctx context.Context, request *GetCommentRequ
 	getSub := global.Redis.Get(ctx, oidType)
 	if getSub.Err() != nil {
 		global.Log.Info("对象表缓存失效")
-		// 回源
-		go backToSource(msg)
-
-		// 透传到MySQL拿数据
-		FetchDataFromMySQL(&gcResp, request.ObjID, int64(request.ObjType), request.Offset)
-		return &gcResp, nil
+		// 回源&返回数据
+		return backToSourceAndGetData(ctx, oidType, request.ObjID, int64(request.ObjType), request.Offset, msg)
 	} else {
 		cs := CommentSubject{}
 		err := proto.Unmarshal([]byte(getSub.Val()), &cs)
@@ -77,13 +74,8 @@ func (c *CommentMessage) GetComment(ctx context.Context, request *GetCommentRequ
 	getIndex := global.Redis.ZRange(ctx, oidTypeSort, 0, -1)
 	if getIndex.Err() != nil {
 		global.Log.Info("评论索引表缓存失效")
-		// 回源
-		go backToSource(msg)
-
-		// 透传到MySQL拿数据
-		gcResp = GetCommentResponse{}
-		FetchDataFromMySQL(&gcResp, request.ObjID, int64(request.ObjType), request.Offset)
-		return &gcResp, nil
+		// 回源&返回数据
+		return backToSourceAndGetData(ctx, oidType, request.ObjID, int64(request.ObjType), request.Offset, msg)
 	} else {
 		length := int32(len(getIndex.Val()))
 		// 从Offset开始，一次最多返回10条数据
@@ -103,13 +95,8 @@ func (c *CommentMessage) GetComment(ctx context.Context, request *GetCommentRequ
 		getComment := global.Redis.Get(ctx, strconv.FormatInt(gcResp.Id[i], 10))
 		if getComment.Err() != nil {
 			global.Log.Info("评论内容表缓存失效")
-			// 回源
-			go backToSource(msg)
-
-			// 透传到MySQL拿数据
-			gcResp = GetCommentResponse{}
-			FetchDataFromMySQL(&gcResp, request.ObjID, int64(request.ObjType), request.Offset)
-			return &gcResp, nil
+			// 回源&返回数据
+			return backToSourceAndGetData(ctx, oidType, request.ObjID, int64(request.ObjType), request.Offset, msg)
 		} else {
 			err := proto.Unmarshal([]byte(getComment.Val()), &content)
 			if err != nil {
@@ -160,6 +147,24 @@ func FetchDataFromMySQL(gcResp *GetCommentResponse, obiID, objType int64, offset
 		AddCommentToResponse(gcResp, ccm[j].Message)
 	}
 
+}
+
+func backToSourceAndGetData(ctx context.Context, key string, obiID, ObjType int64, offset int32, msg []byte) (*GetCommentResponse, error) {
+	ch := global.SF.DoChan(key, func() (interface{}, error) {
+		go backToSource(msg)
+		// 透传到MySQL拿数据
+		gcResp := GetCommentResponse{}
+		FetchDataFromMySQL(&gcResp, obiID, ObjType, offset)
+		return &gcResp, nil
+	})
+
+	select {
+	case <-ctx.Done():
+		return nil, errors.New("ctx_timeout")
+	case data, _ := <-ch:
+		global.SF.Forget(key)
+		return data.Val.(*GetCommentResponse), nil
+	}
 }
 
 func (c *CommentMessage) mustEmbedUnimplementedMessageServiceServer() {}

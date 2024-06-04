@@ -6,6 +6,7 @@ import (
 	"comment/global"
 	"comment/routers"
 	"fmt"
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc"
 )
 
@@ -25,6 +26,7 @@ func main() {
 	global.Redis = core.Redis()
 	global.GrpcConn = core.GrpcClient()
 	core.Kafka()
+	global.SF = new(singleflight.Group)
 
 	defer func(conn *grpc.ClientConn) {
 		err := conn.Close()

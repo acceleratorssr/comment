@@ -4,6 +4,7 @@ import (
 	"comment/config"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -19,4 +20,5 @@ var (
 	Redis    *redis.Client
 	Grpc     *config.Grpc
 	GrpcConn *grpc.ClientConn
+	SF       *singleflight.Group
 )

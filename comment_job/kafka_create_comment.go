@@ -106,12 +106,10 @@ func CreateCommentConsumer() {
 		// TODO like & hate?
 		// 更新缓存 comment_subject_cache
 		ctx := context.Background()
-		go addSubjectCache(ctx, &csm)
+		cim := []models.CommentIndexModels{commentIndexModel}
+		comment := []string{cmr.Comment}
 
-		// 增量缓存 comment_index_cache
-		go addCommentIndexCache(ctx, csm.ObjID, int64(csm.ObjType), &commentIndexModel)
-
-		// comment_content_cache
-		go addCommentCommentCache(ctx, cmr.Comment, commentIndexModel.ID)
+		addSubjectAndCommentCache(ctx, &csm, &cim,
+			comment)
 	}
 }
